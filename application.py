@@ -60,12 +60,16 @@ def run():
     columns = ['horaSolicitacao', 'horaCheckin', 'qtdPessoas', 'qtdEnt', 'qtdPrincipal', 'qtdBebidas', 'qtdSobremesas', 'fds', 'noite']    
     df = pd.DataFrame(response_json, columns = columns)
     df_ordenada = df.sort_values(by='horaCheckin', ascending=False)
-    maior_valor = df_ordenada.values[0,1] #será utilizado para mostrar o valor da saida
-    df_tratada = df.div(maior_valor)
-    filename  ='modelo_finalizado.sav'
-    loaded_model = pickle.load(open(filename, 'rb'))    
-    prediction = loaded_model.predict(df_tratada)
-    prediction = np.multiply(prediction, maior_valor)
-    prediction.sort()
-    final_result = np.average(prediction[:5])
-    return str(math.ceil(final_result))
+    print(len(df))
+    if len(df) < 15:
+        return '1'
+    else:
+        maior_valor = df_ordenada.values[0,1] #será utilizado para mostrar o valor da saida
+        df_tratada = df.div(maior_valor)
+        filename  ='modelo_finalizado.sav'
+        loaded_model = pickle.load(open(filename, 'rb'))    
+        prediction = loaded_model.predict(df_tratada)
+        prediction = np.multiply(prediction, maior_valor)
+        prediction.sort()
+        final_result = np.average(prediction[:5])
+        return str(math.ceil(final_result))
