@@ -1,14 +1,13 @@
-import math
 import requests
 import numpy as np
 import pickle
 import pandas as pd
 from sklearn.neural_network import MLPRegressor
 from sklearn.model_selection import train_test_split
-from flask import Flask
+from flask import Flask, jsonify
 app = Flask(__name__)
 
-@app.route('/train')
+@app.route('/train', methods=['GET'])
 def train():
     response = requests.get('http://smartqueueapi.azurewebsites.net/api/estudos/buscardadostreinoia')
     response_json = response.json()
@@ -33,7 +32,7 @@ def train():
     accuracy = model.score(df_x, df_y)
     return 'Acurácia: ' + str(accuracy)
 
-@app.route('/test')
+@app.route('/test', methods=['GET'])
 def test():
     response = requests.get('http://smartqueueapi.azurewebsites.net/api/estudos/buscardadostesteia')
     response_json = response.json()
@@ -53,23 +52,25 @@ def test():
     accuracy = loaded_model.score(df_x, df_y)    
     return 'Resultado Final: ' + str(final_result) + ' Acurácia: ' + str(accuracy)
 
-@app.route('/run')
-def run():
+@app.route('/run/<int:quantity>')
+def run(quantity):
     response = requests.get('http://smartqueueapi.azurewebsites.net/api/estudos/buscardadosexecucao')
     response_json = response.json()
     columns = ['horaSolicitacao', 'horaCheckin', 'qtdPessoas', 'qtdEnt', 'qtdPrincipal', 'qtdBebidas', 'qtdSobremesas', 'fds', 'noite']    
     df = pd.DataFrame(response_json, columns = columns)
     df_ordenada = df.sort_values(by='horaCheckin', ascending=False)
-    print(len(df))
-    if len(df) < 15:
-        return '1'
-    else:
-        maior_valor = df_ordenada.values[0,1] #será utilizado para mostrar o valor da saida
-        df_tratada = df.div(maior_valor)
-        filename  ='modelo_finalizado.sav'
-        loaded_model = pickle.load(open(filename, 'rb'))    
-        prediction = loaded_model.predict(df_tratada)
-        prediction = np.multiply(prediction, maior_valor)
-        prediction.sort()
-        final_result = np.average(prediction[:5])
-        return str(math.ceil(final_result))
+    maior_valor = df_ordenada.values[0,1] #será utilizado para mostrar o valor da saida
+    df_tratada = df.div(maior_valor)
+    filename  ='modelo_finalizado.sav'
+    loaded_model = pickle.load(open(filename, 'rb'))    
+    prediction = loaded_model.predict(df_tratada)
+    prediction = np.multiply(prediction, maior_valor)
+    prediction = np.ceil(prediction)
+    prediction.sort()
+    responsePred = []
+    for i in range(quantity):
+        if i < len(prediction):
+            responsePred.append(prediction[i])
+        else:
+            responsePred.append(np.ceil((responsePred[0] / 5) + responsePred[-1]))
+    return jsonify({'tempos': responsePred})
